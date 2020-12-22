@@ -1,0 +1,243 @@
+---
+title: "Bayesian Final"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Binary data
+```{r}
+library(truncnorm)
+library(MASS)
+library(dplyr)
+library(extraDistr)
+data <- read.csv("data_banknote_authentication.txt", header = FALSE)
+y <- data$V5
+n <- length(y)
+X <- cbind(rep(1, n), data$V1, data$V2, data$V3, data$V4)
+S <- 300
+p <- dim(X)[2]
+```
+
+
+# Gaussian link
+## diffuse prior
+```{r}
+Z0 <- rep(1, n)
+beta0 <- rep(0.5, p)
+BETA <- matrix(nrow = S, ncol = length(beta0))
+beta <- beta0
+Z <- Z0
+for (s in 1:S) {
+    
+    V <- solve(t(X) %*% X)
+    m <- solve(t(X) %*% X) %*% t(X) %*% Z
+    
+    
+    beta <- mvrnorm(1, m, V)
+    
+    for (i in 1:n){
+      if (y[i]==1){Z[i]=rtruncnorm(1, a = 0, b = Inf, mean = X[i, ] %*% beta, sd = 1)}
+      else {Z[i]=rtruncnorm(1, a = -Inf, b = 0, mean = X[i, ] %*% beta, sd = 1)}
+    }
+    
+    
+    BETA[s, ] <- beta
+    
+  }
+```
+
+```{r}
+c(mean(BETA[ , 1]),var(BETA[ , 1]))
+c(mean(BETA[ , 2]),var(BETA[ , 2]))
+c(mean(BETA[ , 3]),var(BETA[ , 3]))
+c(mean(BETA[ , 4]),var(BETA[ , 4]))
+c(mean(BETA[ , 5]),var(BETA[ , 5]))
+```
+
+
+```{r}
+par(mfrow=c(2,3))
+plot(density(BETA[ , 1]), xlab = 'beta1', ylab = 'density', main = 'Gaussian & diffuse')
+plot(density(BETA[ , 2]), xlab = 'beta2', ylab = 'density', main = 'Gaussian & diffuse')
+plot(density(BETA[ , 3]), xlab = 'beta3', ylab = 'density', main = 'Gaussian & diffuse')
+plot(density(BETA[ , 4]), xlab = 'beta4', ylab = 'density', main = 'Gaussian & diffuse')
+plot(density(BETA[ , 5]), xlab = 'beta5', ylab = 'density', main = 'Gaussian & diffuse')
+```
+
+
+
+## Conjugate prior
+```{r}
+B_star <- diag(p)
+beta_star <- rep(0.5, p)
+Z0 <- rep(1, n)
+beta0 <- rep(0.5, p)
+BETA <- matrix(nrow = S, ncol = length(beta0))
+beta <- beta0
+Z <- Z0
+for (s in 1:S) {
+    
+    V <- solve(solve(B_star) + t(X) %*% X)
+    m <- V %*% (solve(B_star) %*% beta_star + t(X) %*% Z)
+    
+    
+    beta <- mvrnorm(1, m, V)
+    
+    for (i in 1:n){
+      if (y[i]==1){Z[i]=rtruncnorm(1, a = 0, b = Inf, mean = X[i, ] %*% beta, sd = 1)}
+      else {Z[i]=rtruncnorm(1, a = -Inf, b = 0, mean = X[i, ] %*% beta, sd = 1)}
+    }
+    
+    
+    BETA[s, ] <- beta
+    
+  }
+
+
+
+```
+
+```{r}
+c(mean(BETA[ , 1]),var(BETA[ , 1]))
+c(mean(BETA[ , 2]),var(BETA[ , 2]))
+c(mean(BETA[ , 3]),var(BETA[ , 3]))
+c(mean(BETA[ , 4]),var(BETA[ , 4]))
+c(mean(BETA[ , 5]),var(BETA[ , 5]))
+```
+
+```{r}
+par(mfrow=c(2,3))
+plot(density(BETA[ , 1]), xlab = 'beta1', ylab = 'density', main = 'Gaussian & Conjugate')
+plot(density(BETA[ , 2]), xlab = 'beta2', ylab = 'density', main = 'Gaussian & Conjugate')
+plot(density(BETA[ , 3]), xlab = 'beta3', ylab = 'density', main = 'Gaussian & Conjugate')
+plot(density(BETA[ , 4]), xlab = 'beta4', ylab = 'density', main = 'Gaussian & Conjugate')
+plot(density(BETA[ , 5]), xlab = 'beta5', ylab = 'density', main = 'Gaussian & Conjugate')
+```
+
+
+## t link
+Choose uniform prior for $\nu$.
+```{r}
+lambda0 <- rep(0.5, n)
+nu0 <- 2
+Z0 <- rep(1, n)
+beta0 <- rep(0.5, p)
+BETA <- matrix(nrow = S, ncol = length(beta0))
+beta <- beta0
+Z <- Z0
+lambda <- lambda0
+nu <- nu0
+for (s in 1:S) {
+    
+    
+    V <- solve(t(X) %*% diag(lambda) %*% X)
+    m <- V %*% t(X) %*% diag(lambda) %*% Z
+    
+    
+    beta <- mvrnorm(1, m, V)
+    
+    for (i in 1:n){
+      if (y[i]==1){Z[i]=rtruncnorm(1, a = 0, b = Inf, mean = X[i, ] %*% beta, sd = 1)}
+      else {Z[i]=rtruncnorm(1, a = -Inf, b = 0, mean = X[i, ] %*% beta, sd = 1)}
+    }
+    
+    
+    
+    lambda <- rgamma(n, shape = (nu + 1)/2, rate = 2/(nu + (Z[i]-X[i, ] %*% beta)^2))
+    
+   
+    nu <- 10
+    
+    
+    BETA[s, ] <- beta
+    
+  }
+
+```
+
+```{r}
+c(mean(BETA[ , 1]),var(BETA[ , 1]))
+c(mean(BETA[ , 2]),var(BETA[ , 2]))
+c(mean(BETA[ , 3]),var(BETA[ , 3]))
+c(mean(BETA[ , 4]),var(BETA[ , 4]))
+c(mean(BETA[ , 5]),var(BETA[ , 5]))
+```
+
+```{r}
+par(mfrow=c(2,3))
+plot(density(BETA[ , 1]), xlab = 'beta1', ylab = 'density', main = 't link with uniform')
+plot(density(BETA[ , 2]), xlab = 'beta2', ylab = 'density', main = 't link with uniform')
+plot(density(BETA[ , 3]), xlab = 'beta3', ylab = 'density', main = 't link with uniform')
+plot(density(BETA[ , 4]), xlab = 'beta4', ylab = 'density', main = 't link with uniform')
+plot(density(BETA[ , 5]), xlab = 'beta5', ylab = 'density', main = 't link with uniform')
+```
+
+
+```{r}
+S <- 50
+A <- diag(p) 
+Z0 <- rep(1, n)
+beta0 <- rep(0.5, p)
+sigma20 <- 1
+BETA <- matrix(nrow = S, ncol = length(beta0))
+beta <- beta0
+Z <- Z0
+sigma2 <- sigma20
+
+ss <- seq(0.1, 5, length.out = 100)
+pr <- numeric(100) 
+for (s in 1:S) {
+    
+    theta1 <- solve(t(X) %*% X) %*% t(X) %*% Z
+    theta2 <- solve(t(X) %*% solve(diag(n) + sigma2 * X %*% t(X)) %*% X) %*% t(X) %*% solve(diag(n) + sigma2 * X %*% t(X)) %*% Z
+    W1 <- solve(t(X) %*% X + diag(p)/sigma2) %*% t(X) %*% X
+    V <- (diag(p) - W1) %*%  solve(t(X) %*% solve(diag(n) + sigma2 * X %*% t(X)) %*% X) %*% t(diag(p) - W1) + solve(t(X) %*% X + diag(p)/sigma2)
+    m <- W1 %*% theta1 + (diag(p) - W1) %*% theta2
+    
+    
+    beta <- mvrnorm(1, m, V)
+    
+    for (i in 1:n){
+      if (y[i]==1){Z[i]=rtruncnorm(1, a = 0, b = Inf, mean = X[i, ] %*% beta, sd = 1)}
+      else {Z[i]=rtruncnorm(1, a = -Inf, b = 0, mean = X[i, ] %*% beta, sd = 1)}
+    }
+    
+    
+    
+    
+    
+    p1 <- (det(solve(diag(n) + 1 * X %*% t(X)))^0.5) / (det(t(X) %*% solve(diag(n) + 1 * X %*% t(X)) %*% X)^0.5) * exp(-0.5*t(Z-X %*% theta2) %*% (solve(diag(n) + 1 * X %*% t(X))) %*% (Z-X %*% theta2))
+    p2 <- (det(solve(diag(n) + 2 * X %*% t(X)))^0.5) / (det(t(X) %*% solve(diag(n) + 2 * X %*% t(X)) %*% X)^0.5) * exp(-0.5*t(Z-X %*% theta2) %*% (solve(diag(n) + 2 * X %*% t(X))) %*% (Z-X %*% theta2))
+    
+    
+    sigma2 <- rbern(1, prob = p1/(p1 + p2)) + 1
+    
+    
+    BETA[s, ] <- beta
+    
+  }
+
+
+
+```
+
+```{r}
+c(mean(BETA[ , 1]),var(BETA[ , 1]))
+c(mean(BETA[ , 2]),var(BETA[ , 2]))
+c(mean(BETA[ , 3]),var(BETA[ , 3]))
+c(mean(BETA[ , 4]),var(BETA[ , 4]))
+c(mean(BETA[ , 5]),var(BETA[ , 5]))
+```
+
+```{r}
+par(mfrow=c(2,3))
+plot(density(BETA[ , 1]), xlab = 'beta1', ylab = 'density', main = 'hierarchical')
+plot(density(BETA[ , 2]), xlab = 'beta2', ylab = 'density', main = 'hierarchical')
+plot(density(BETA[ , 3]), xlab = 'beta3', ylab = 'density', main = 'hierarchical')
+plot(density(BETA[ , 4]), xlab = 'beta4', ylab = 'density', main = 'hierarchical')
+plot(density(BETA[ , 5]), xlab = 'beta5', ylab = 'density', main = 'hierarchical')
+```
